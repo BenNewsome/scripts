@@ -1,3 +1,5 @@
+#!/usr/bin/python
+#
 # Copy photo_default to reactant1_reactant2_p1
 
 # Change reactant 1 and reactant 2 in sensetivity.dat
@@ -9,24 +11,25 @@
 # run monthly-run --name = reactant1_reactant2_ --queue=batch --priority=-1000 --start-run=yes
 import os, shutil, sys
 
-source = photo_default
+source = "default_before_run"
 
+debug=True
 
 def main():
 
-
+   
 
    species_1, species_2, f298, g = get_inputs()
 
-   check_inputs(species_1, species_2, f298, g)
+   check_inputs(species_1, species_2, f298, g, debug)
 
    destination = species_1 + "_" + species_2 + "_p1"
 
    copy_folder(source, destination)
 
-   update_sentetivity(species_1, species_2, f298, g)
+   update_sensetivity(species_1, species_2, f298, g, destination)
 
-   run_queue_script(species_1, species_2)
+   run_queue_script(species_1, species_2, destination)
 
 
 def get_inputs():
@@ -78,12 +81,18 @@ def get_inputs():
    return species_1, species_2, f298, g;
 
 
-def check_inputs(speices_1, species_2, f298, g):
+def check_inputs(species_1, species_2, f298, g, debug):
 
-   assert (len(species_1) > 1), "species_1 not defined"
-   assert (len(species_2) > 1), "species_2 not defined"
-   assert (len(f298) > 1), "f298 not defined"
-   assert (len(g) > 1), "g not defined"
+   if debug:
+      print species_1
+      print species_2
+      print f298
+      print g
+
+   assert (len(species_1) > 0), "species_1 not defined, recived: " + species_1
+   assert (len(species_2) > 0), "species_2 not defined, recived: " + species_2
+   assert (len(f298) > 0), "f298 not defined, recived: " + f298
+   assert (len(g) > 0), "g not defined, recived: " + g
 
    
 
@@ -97,7 +106,7 @@ def clear_screen():
 def copy_folder(source, destination):
 
    try:
-      shutil.compytree(source, destination)
+      shutil.copytree(source, destination)
    except OSError:
       print "Copy error"
 
@@ -105,36 +114,56 @@ def update_sensetivity(species_1, species_2, f298, g, destination):
 
 
    file_location = destination + "/sensetivity.dat"
-   tmp_file_locaiton = destination + "/sensetivity.dat.tmp"
+   tmp_file_location = destination + "/sensetivity.dat.tmp"
    file = open( file_location, 'r' )
    tmp_file = open( tmp_file_location, 'w' )
 
-   for line in file:
-      if   line.starts_with("Species 1             ::"):
-             tmp_file.write("Species 1             :: " + species_1)
-      elif line.starts_with("Species 2             ::"):
-             tmp_file.write("Species 2             :: " + species_2) 
-      elif line.starts_with("f(298)                ::"):
-             tmp_file.write("f(298)                :: " + f298) 
-      elif line.starts_with("g                     ::"):
-             tmp_file.write("g                     :: " + g )
-      elif line.starts_with("Sigma Value           ::"):
-             tmp_file.write("Sigma Value           :: " + "1" )  
+   if ( species_1 == "photo" ) :
 
-      else:
-      tmp_file.write(line)
+      for line in file:
+         
+         if    line.startswith("Photolysis reaction # ::"):
+                tmp_file.write("Photolysis reaction # :: " + species_2 + '\n')
+   
+         elif  line.startswith("Photolysis uncertanty ::"):
+                tmp_file.write("Photolysis uncertanty :: 1.1d0\n")         
+   
+   else   
+   
+      for line in file:
+         if    line.startswith("Species 1             ::"):
+                tmp_file.write("Species 1             :: " + species_1 + '\n')
+   
+         elif  line.startswith("Species 2             ::"):
+                tmp_file.write("Species 2             :: " + species_2 + '\n') 
+   
+         elif  line.startswith("f(298)                ::"):
+                tmp_file.write("f(298)                :: " + f298 + '\n') 
+   
+         elif  line.startswith("g                     ::"):
+                tmp_file.write("g                     :: " + g + '\n')
+   
+         elif  line.startswith("Sigma Value           ::"):
+                tmp_file.write("Sigma Value           :: " + "1" + '\n')  
+   
+         else:
+            tmp_file.write(line)
    
    file.close()
    tmp_file.close()   
 
    
-   shutil.copy(tmp_file, file_location)
+   shutil.move(tmp_file_location, file_location)
 
-def run_queue_script(species_1, species_2, destination)
+def run_queue_script(species_1, species_2, destination):
 
-   os.system( "cd " + destination ) 
+   os.chdir(destination) 
 
-   call_string = "monthly-run --queue-name="+species_1+"_"+speices_2+"_"
+   call_string = "monthly-run --job-name="+species_1+"_"+species_2+"_" +" --queue-name=run" + " --out-of-hours=yes"
+   if debug: print call_string
+
+   if debug: print os.getcwd()
+   
 
    os.system( call_string )
 
